@@ -1,0 +1,90 @@
+#mongodb3.4 集群
+#安装包
+curl -O https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-3.4.6.tgz
+
+#端口分配
+mongos：20000
+config：21000
+shard1：27001
+shard2：27002
+shard3：27003
+
+
+#服务器规划
+59:config server,shard1 server,shard3 server
+60:mongos server,config server,shard2 server,shard1 server
+61:mongos server,config server,shard3 server,shard2 server
+
+
+
+
+#创建目录
+mkdir -p /usr/local/mongodb/conf
+mkdir -p /data/mongos/log
+mkdir -p /data/config/data
+mkdir -p /data/config/log
+mkdir -p /data/shard1/data
+mkdir -p /data/shard1/log
+mkdir -p /data/shard2/data
+mkdir -p /data/shard2/log
+mkdir -p /data/shard3/data
+mkdir -p /data/shard3/log
+
+
+#配置服务初始化
+#连接 
+mongo 10.92.124.59:21000 
+#config变量 
+config = { 
+...    _id : "config", 
+...     members : [ 
+...         {_id : 0, host : "10.92.124.59:21000" }, 
+...         {_id : 1, host : "10.92.124.60:21000" }, 
+...         {_id : 2, host : "10.92.124.61:21000" } 
+...     ] 
+... }  
+
+#初始化副本集 
+rs.initiate(config)  
+#查看分区状态 rs.status();
+
+
+
+#分片初始化
+mongo 10.92.124.59:27001 
+#使用admin数据库 
+use admin 
+#定义副本集配置 
+config = { 
+...    _id : "shard1", 
+...     members : [ 
+...         {_id : 0, host : "10.92.124.59:27001" }, 
+...         {_id : 1, host : "10.92.124.60:27001" }
+...     ] 
+... }   
+#初始化副本集配置 
+rs.initiate(config);   
+#查看分区状态 
+rs.status();
+
+
+
+#启用分片
+mongo 10.92.124.60:20000 
+#使用admin数据库 
+use  admin 
+#串联路由服务器与分配副本集 
+sh.addShard("shard1/10.92.124.59:27001,10.92.124.60:27001") 
+sh.addShard("shard2/10.92.124.60:27002,10.92.124.61:27002") 
+sh.addShard("shard3/10.92.124.61:27003,10.92.124.59:27003") 
+#查看集群状态 
+sh.status()
+
+
+
+
+
+
+
+
+
